@@ -1,0 +1,72 @@
+name: Continuous Deployment
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v2
+      with:
+        node-version: '14'
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Install Node.js dependencies
+      run: npm ci
+
+    - name: Build frontend
+      run: npm run build
+
+    - name: Build backend
+      run: python setup.py build
+
+    - name: Run integration tests
+      run: python -m pytest tests/integration
+
+    - name: Set up Google Cloud SDK
+      uses: google-github-actions/setup-gcloud@v0.2.0
+      with:
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
+        service_account_key: ${{ secrets.GCP_SA_KEY }}
+        export_default_credentials: true
+
+    - name: Deploy to Google Cloud Run
+      run: |
+        gcloud run deploy myapp --image gcr.io/${{ secrets.GCP_PROJECT_ID }}/myapp:${{ github.sha }} --platform managed --region us-central1
+
+    - name: Update database schemas
+      run: python manage.py db upgrade
+
+    - name: Notify team on deployment status
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ job.status }}
+        text: Deployment to production ${{ job.status }}
+        fields: repo,message,commit,author,action,eventName,ref,workflow
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK }}
+
+# HUMAN ASSISTANCE NEEDED
+# Please review the following:
+# 1. Ensure the correct Python and Node.js versions are specified
+# 2. Verify the Google Cloud Run deployment command and region
+# 3. Check if the database schema update command is correct for your ORM
+# 4. Confirm the Slack notification setup and customize fields as needed
