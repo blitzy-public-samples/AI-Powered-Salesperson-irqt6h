@@ -1,0 +1,57 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: ../../frontend
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - REACT_APP_API_URL=http://backend:5000
+    depends_on:
+      - backend
+    networks:
+      - app-network
+
+  backend:
+    build:
+      context: ../../backend
+      dockerfile: Dockerfile
+    ports:
+      - "5000:5000"
+    environment:
+      - DATABASE_URL=postgresql://postgres:password@db:5432/chatbot
+      - JWT_SECRET=your_jwt_secret_here
+      - OPENAI_API_KEY=your_openai_api_key_here
+    depends_on:
+      - db
+    networks:
+      - app-network
+
+  db:
+    image: postgres:13
+    environment:
+      - POSTGRES_DB=chatbot
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - app-network
+
+volumes:
+  postgres_data:
+
+networks:
+  app-network:
+    driver: bridge
+
+# HUMAN ASSISTANCE NEEDED
+# Please review and update the following:
+# 1. Ensure that the REACT_APP_API_URL is correct for your production environment
+# 2. Replace 'your_jwt_secret_here' with a strong, unique secret for JWT token signing
+# 3. Replace 'your_openai_api_key_here' with your actual OpenAI API key
+# 4. Review and adjust the PostgreSQL credentials (user, password) for production use
+# 5. Consider adding health checks for the services
+# 6. Implement proper logging configurations for each service
